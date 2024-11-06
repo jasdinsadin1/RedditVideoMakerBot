@@ -177,12 +177,14 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                 # zoom the body of the page
                 page.evaluate("document.body.style.zoom=" + str(zoom))
                 # as zooming the body doesn't change the properties of the divs, we need to adjust for the zoom
-                location = page.locator('[data-test-id="post-content"]').bounding_box()
+                # location = page.locator('[data-test-id="post-content"]').bounding_box()
+                location = page.locator('h1[slot="title"]').bounding_box()
                 for i in location:
                     location[i] = float("{:.2f}".format(location[i] * zoom))
                 page.screenshot(clip=location, path=postcontentpath)
             else:
-                page.locator('[data-test-id="post-content"]').screenshot(path=postcontentpath)
+                post_element = page.locator("shreddit-post div").filter(has_text="Previous Actions Ignore").first
+                post_element.screenshot(path=postcontentpath)
         except Exception as e:
             print_substep("Something went wrong!", style="red")
             resp = input(
@@ -231,11 +233,12 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                         to_language=settings.config["reddit"]["thread"]["post_lang"],
                     )
                     page.evaluate(
-                        '([tl_content, tl_id]) => document.querySelector(`#t1_${tl_id} > div:nth-child(2) > div > div[data-testid="comment"] > div`).textContent = tl_content',
-                        [comment_tl, comment["comment_id"]],
+                        '([tl_content, tl_id]) => document.querySelector(`#t1_${tl_id}-comment-rtjson-content p`).textContent = tl_content',
+                        [comment_tl, comment["comment_id"]]
                     )
                 try:
                     if settings.config["settings"]["zoom"] != 1:
+                        page.locator("button[aria-controls=\"comment-children\"]").first.click()
                         # store zoom settings
                         zoom = settings.config["settings"]["zoom"]
                         # zoom the body of the page
@@ -243,7 +246,7 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                         # scroll comment into view
                         page.locator(f"#t1_{comment['comment_id']}").scroll_into_view_if_needed()
                         # as zooming the body doesn't change the properties of the divs, we need to adjust for the zoom
-                        location = page.locator(f"#t1_{comment['comment_id']}").bounding_box()
+                        location = page.locator('shreddit-post div').nth(1).click().bounding_box()
                         for i in location:
                             location[i] = float("{:.2f}".format(location[i] * zoom))
                         page.screenshot(
@@ -251,9 +254,9 @@ def get_screenshots_of_reddit_posts(reddit_object: dict, screenshot_num: int):
                             path=f"assets/temp/{reddit_id}/png/comment_{idx}.png",
                         )
                     else:
-                        page.locator(f"#t1_{comment['comment_id']}").screenshot(
-                            path=f"assets/temp/{reddit_id}/png/comment_{idx}.png"
-                        )
+                        # page.locator("button[aria-controls=\"comment-children\"]").first.click()
+                        post_element = page.locator("shreddit-post div").filter(has_text="Previous Actions Ignore").first
+                        post_element.screenshot(path=postcontentpath)
                 except TimeoutError:
                     del reddit_object["comments"]
                     screenshot_num += 1
